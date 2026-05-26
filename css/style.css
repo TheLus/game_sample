@@ -1,0 +1,200 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #1a1a2e;
+  --panel: #16213e;
+  --accent: #e94560;
+  --accent-dim: #a83248;
+  --text: #eaeaea;
+  --text-dim: #a0a0b0;
+  --player: #4a9eff;
+  --enemy: #ff6b4a;
+  --move: rgba(74, 158, 255, 0.35);
+  --attack: rgba(233, 69, 96, 0.4);
+  --border: #0f3460;
+}
+
+body {
+  font-family: "Hiragino Sans", "Yu Gothic", "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.header h1 {
+  font-size: 1.4rem;
+  letter-spacing: 0.05em;
+}
+
+.subtitle {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-top: 0.25rem;
+}
+
+.main {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.game-area {
+  position: relative;
+}
+
+#gameCanvas {
+  display: block;
+  border: 3px solid var(--border);
+  border-radius: 4px;
+  cursor: crosshair;
+  image-rendering: pixelated;
+  background: #2d4a3e;
+}
+
+.message {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.75);
+  font-size: 0.9rem;
+  min-height: 2rem;
+  pointer-events: none;
+}
+
+.sidebar {
+  width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
+.panel h2 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+}
+
+.phase-text {
+  font-size: 1rem;
+  font-weight: bold;
+  margin-bottom: 0.75rem;
+}
+
+.phase-text.player {
+  color: var(--player);
+}
+
+.phase-text.enemy {
+  color: var(--enemy);
+}
+
+.unit-info .placeholder {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.unit-info dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.2rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.unit-info dt {
+  color: var(--text-dim);
+}
+
+.unit-info .name {
+  grid-column: 1 / -1;
+  font-size: 1rem;
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.unit-info .hp-bar {
+  grid-column: 1 / -1;
+  height: 8px;
+  background: #333;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 0.25rem 0;
+}
+
+.unit-info .hp-fill {
+  height: 100%;
+  background: #4ade80;
+  transition: width 0.2s;
+}
+
+.help-list {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  padding-left: 1.1rem;
+  line-height: 1.6;
+}
+
+.btn {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-primary:not(:disabled):hover {
+  background: var(--accent-dim);
+}
+
+.btn-secondary {
+  background: var(--border);
+  color: var(--text);
+}
+
+.footer {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.footer .btn {
+  width: auto;
+  min-width: 140px;
+}

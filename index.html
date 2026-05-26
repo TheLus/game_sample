@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>タクティクス・シミュレーション</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1>タクティクス・シミュレーション</h1>
+      <p class="subtitle">2D タクティカルRPG</p>
+    </header>
+
+    <main class="main">
+      <div class="game-area">
+        <canvas id="gameCanvas" width="640" height="480"></canvas>
+        <div id="message" class="message" aria-live="polite"></div>
+      </div>
+
+      <aside class="sidebar">
+        <section class="panel">
+          <h2>フェーズ</h2>
+          <p id="phaseText" class="phase-text">—</p>
+          <button id="endTurnBtn" type="button" class="btn btn-primary" disabled>ターン終了</button>
+        </section>
+
+        <section class="panel">
+          <h2>ユニット情報</h2>
+          <div id="unitInfo" class="unit-info">
+            <p class="placeholder">マスを選択してください</p>
+          </div>
+        </section>
+
+        <section class="panel panel-help">
+          <h2>操作</h2>
+          <ul class="help-list">
+            <li>クリック: 選択 / 移動 / 攻撃</li>
+            <li>Esc: キャンセル</li>
+            <li>矢印キー: カーソル移動</li>
+          </ul>
+        </section>
+      </aside>
+    </main>
+
+    <footer class="footer">
+      <button id="restartBtn" type="button" class="btn btn-secondary" hidden>もう一度</button>
+    </footer>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
