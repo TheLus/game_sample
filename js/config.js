@@ -4,6 +4,9 @@ export const TILE_SIZE = 32;
 export const MAP_WIDTH = 16;
 export const MAP_HEIGHT = 12;
 
+/** 敵が反応する範囲（マンハッタン距離） */
+export const ENEMY_AGGRO_RANGE = 5;
+
 export const Team = {
   PLAYER: "player",
   ENEMY: "enemy",
@@ -14,8 +17,27 @@ export const Terrain = {
   FOREST: { id: 1, name: "森", moveCost: 2, defBonus: 1, color: "#3d6b3d" },
   MOUNTAIN: { id: 2, name: "山", moveCost: 3, defBonus: 2, color: "#6b5a4a" },
   FORT: { id: 3, name: "砦", moveCost: 1, defBonus: 3, color: "#7a6a5a" },
-  WALL: { id: 4, name: "壁", moveCost: 99, defBonus: 0, color: "#444" },
+  WALL: { id: 4, name: "壁", impassable: true, moveCost: 99, defBonus: 0, color: "#444" },
+  RIVER: {
+    id: 5,
+    name: "川",
+    impassable: true,
+    moveCost: 99,
+    defBonus: 0,
+    color: "#4a9ec4",
+    waterStyle: "river",
+  },
 };
+
+export const TERRAIN_BY_ID = Object.fromEntries(
+  Object.values(Terrain)
+    .filter((t) => t.id !== undefined)
+    .map((t) => [t.id, t])
+);
+
+export function isImpassableTerrain(terrain) {
+  return Boolean(terrain?.impassable);
+}
 
 export const Weapon = {
   SWORD: "sword",
@@ -79,18 +101,18 @@ export const UnitClass = {
   },
 };
 
-/** 地形IDの2次元マップ（0=平地, 1=森, ...） */
+/** 地形IDの2次元マップ（5=川 は通行不可） */
 export const DEFAULT_MAP = [
-  [0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0],
-  [0, 0, 1, 1, 1, 0, 3, 3, 0, 1, 1, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 2, 2, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 0, 0],
-  [0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0],
-  [0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0],
+  [0, 0, 0, 1, 1, 0, 0, 5, 5, 1, 1, 0, 0, 0, 0, 0],
+  [0, 0, 1, 1, 1, 0, 3, 5, 5, 1, 1, 0, 0, 5, 5, 0],
+  [0, 0, 0, 0, 0, 0, 3, 5, 5, 0, 0, 0, 5, 5, 5, 0],
+  [0, 0, 0, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 5, 0, 0],
+  [0, 1, 1, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 0, 0, 0],
+  [0, 1, 1, 0, 0, 0, 0, 5, 5, 0, 1, 1, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 5, 5, 0, 1, 1, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 5, 5, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 1, 1, 0, 0, 5, 5, 0, 0, 0, 1, 1, 0, 0],
+  [0, 0, 0, 1, 1, 0, 0, 5, 5, 0, 0, 0, 1, 1, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 ];

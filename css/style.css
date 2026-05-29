@@ -107,6 +107,10 @@ body {
   margin-bottom: 0.75rem;
 }
 
+.panel .btn {
+  margin-top: 0.25rem;
+}
+
 .phase-text.player {
   color: var(--player);
 }

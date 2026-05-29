@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>タクティクス・シミュレーション</title>
+  <title>DEMO</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div class="app">
     <header class="header">
-      <h1>タクティクス・シミュレーション</h1>
-      <p class="subtitle">2D タクティカルRPG</p>
+      <h1>DEMO</h1>
     </header>
 
     <main class="main">
@@ -23,7 +22,7 @@
         <section class="panel">
           <h2>フェーズ</h2>
           <p id="phaseText" class="phase-text">—</p>
-          <button id="endTurnBtn" type="button" class="btn btn-primary" disabled>ターン終了</button>
+          <button id="startBattleBtn" type="button" class="btn btn-primary">戦闘開始</button>
         </section>
 
         <section class="panel">
@@ -36,9 +35,17 @@
         <section class="panel panel-help">
           <h2>操作</h2>
           <ul class="help-list">
-            <li>クリック: 選択 / 移動 / 攻撃</li>
-            <li>Esc: キャンセル</li>
+            <li>味方クリック: ユニット選択</li>
+            <li>マスクリック: 移動先指定（経路を表示）</li>
+            <li>川には進入・指定不可</li>
+            <li>自分のマス: 移動指示の解除</li>
+            <li>「戦闘開始」で戦闘フェーズへ</li>
+            <li>戦闘中: 1秒に1ターン自動進行</li>
+            <li>3ターン変化なし / 味方全滅で指示へ</li>
+            <li>敵全滅でゲームクリア</li>
+            <li>敵: 待機、赤範囲内で接近・攻撃</li>
             <li>矢印キー: カーソル移動</li>
+            <li>Esc: 選択解除</li>
           </ul>
         </section>
       </aside>

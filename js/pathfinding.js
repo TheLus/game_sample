@@ -1,45 +1,132 @@
-import { Terrain } from "./config.js";
-
-const TERRAIN_BY_ID = Object.values(Terrain).filter((t) => t.id !== undefined);
+import { Terrain, TERRAIN_BY_ID, isImpassableTerrain } from "./config.js";
 
 export function getTerrain(map, x, y) {
   if (x < 0 || y < 0 || x >= map[0].length || y >= map.length) return null;
   return TERRAIN_BY_ID[map[y][x]] ?? Terrain.PLAIN;
 }
 
-export function getReachableTiles(map, unit, units, startX, startY) {
-  const occupied = new Set(
-    units.filter((u) => u.isAlive && u.id !== unit.id).map((u) => `${u.x},${u.y}`)
+export function isWalkable(map, units, unit, x, y) {
+  const terrain = getTerrain(map, x, y);
+  if (!terrain || isImpassableTerrain(terrain)) return false;
+  const blocker = units.find(
+    (u) => u.isAlive && u.id !== unit.id && u.x === x && u.y === y
   );
-  const dist = new Map();
-  const queue = [{ x: startX, y: startY, cost: 0 }];
-  dist.set(`${startX},${startY}`, 0);
+  return !blocker;
+}
+
+function findPathParents(map, units, unit, destX, destY) {
+  const startKey = `${unit.x},${unit.y}`;
+  const destKey = `${destX},${destY}`;
+
+  if (startKey === destKey) {
+    return { parent: new Map([[startKey, null]]), found: true, startKey, destKey };
+  }
+
+  const destTerrain = getTerrain(map, destX, destY);
+  if (isImpassableTerrain(destTerrain)) {
+    return { parent: new Map([[startKey, null]]), found: false, startKey, destKey };
+  }
+
+  const queue = [{ x: unit.x, y: unit.y }];
+  const parent = new Map([[startKey, null]]);
+  let found = false;
 
   while (queue.length > 0) {
-    const { x, y, cost } = queue.shift();
-    const neighbors = [
+    const { x, y } = queue.shift();
+    const key = `${x},${y}`;
+    if (key === destKey) {
+      found = true;
+      break;
+    }
+
+    for (const [nx, ny] of [
       [x + 1, y],
       [x - 1, y],
       [x, y + 1],
       [x, y - 1],
-    ];
+    ]) {
+      const nkey = `${nx},${ny}`;
+      if (parent.has(nkey)) continue;
 
-    for (const [nx, ny] of neighbors) {
       const terrain = getTerrain(map, nx, ny);
-      if (!terrain || terrain.moveCost >= 99) continue;
+      if (isImpassableTerrain(terrain)) continue;
 
-      const key = `${nx},${ny}`;
-      const newCost = cost + terrain.moveCost;
-      if (newCost > unit.moveRange) continue;
-      if (occupied.has(key) && !(nx === unit.x && ny === unit.y)) continue;
-      if (dist.has(key) && dist.get(key) <= newCost) continue;
+      const blocked = units.some(
+        (u) => u.isAlive && u.id !== unit.id && u.x === nx && u.y === ny
+      );
+      if (blocked && nkey !== destKey) continue;
 
-      dist.set(key, newCost);
-      queue.push({ x: nx, y: ny, cost: newCost });
+      parent.set(nkey, key);
+      queue.push({ x: nx, y: ny });
     }
   }
 
-  return dist;
+  return { parent, found, startKey, destKey };
+}
+
+/**
+ * 現在地から目的地までの経路（開始マス除く、目的地を含む）
+ * @returns {{ x: number, y: number }[] | null}
+ */
+export function getPathToward(map, units, unit, destX, destY) {
+  const { parent, found, startKey, destKey } = findPathParents(
+    map,
+    units,
+    unit,
+    destX,
+    destY
+  );
+
+  if (!found) return null;
+  if (startKey === destKey) return [];
+
+  const path = [];
+  let current = destKey;
+  while (current !== startKey) {
+    const [x, y] = current.split(",").map(Number);
+    path.unshift({ x, y });
+    current = parent.get(current);
+    if (current === undefined) return null;
+  }
+
+  return path;
+}
+
+/** 目的地へ向けて進む最初の1マス（BFS） */
+export function getNextStepToward(map, units, unit, destX, destY) {
+  const path = getPathToward(map, units, unit, destX, destY);
+  return path && path.length > 0 ? path[0] : null;
+}
+
+export function getAdjacentTiles(map, units, unit) {
+  const tiles = [{ x: unit.x, y: unit.y }];
+  for (const [nx, ny] of [
+    [unit.x + 1, unit.y],
+    [unit.x - 1, unit.y],
+    [unit.x, unit.y + 1],
+    [unit.x, unit.y - 1],
+  ]) {
+    if (isWalkable(map, units, unit, nx, ny)) {
+      tiles.push({ x: nx, y: ny });
+    }
+  }
+  return tiles;
+}
+
+/** マンハッタン距離で range 以内のマス（中心マスは含めない） */
+export function getTilesInManhattanRange(cx, cy, range, mapWidth, mapHeight) {
+  const tiles = [];
+  for (let dy = -range; dy <= range; dy++) {
+    for (let dx = -range; dx <= range; dx++) {
+      const dist = Math.abs(dx) + Math.abs(dy);
+      if (dist === 0 || dist > range) continue;
+      const x = cx + dx;
+      const y = cy + dy;
+      if (x < 0 || y < 0 || x >= mapWidth || y >= mapHeight) continue;
+      tiles.push({ x, y, dist });
+    }
+  }
+  return tiles;
 }
 
 export function getAttackTiles(unit, fromX, fromY) {

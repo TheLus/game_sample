@@ -21,25 +21,20 @@ export class Unit {
     this.attackRange = template.range ?? 1;
     this.x = x;
     this.y = y;
-    this.hasMoved = false;
-    this.hasActed = false;
+    /** @type {{ x: number, y: number } | null} 味方のみ使用 */
+    this.destination = null;
   }
 
   get isPlayer() {
     return this.team === Team.PLAYER;
   }
 
-  get canAct() {
-    return !this.hasMoved || !this.hasActed;
-  }
-
   get isAlive() {
     return this.hp > 0;
   }
 
-  resetTurn() {
-    this.hasMoved = false;
-    this.hasActed = false;
+  clearDestination() {
+    this.destination = null;
   }
 
   terrainDefBonus(terrain) {
