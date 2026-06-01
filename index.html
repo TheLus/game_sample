@@ -3,13 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DEMO</title>
+  <title>ゲーム</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div class="app">
     <header class="header">
-      <h1>DEMO</h1>
+      <nav class="site-nav">
+        <a href="index.html" class="active">ゲーム</a>
+        <a href="editor.html">ステージ作成</a>
+      </nav>
     </header>
 
     <main class="main">
@@ -28,24 +31,43 @@
       <aside class="sidebar">
         <section class="panel">
           <p id="goldText" class="gold-text">資金: —</p>
+          <label class="field-label" for="turnSpeedSlider">戦闘速度（1ターンあたり）</label>
+          <div class="speed-control">
+            <input
+              type="range"
+              id="turnSpeedSlider"
+              class="speed-slider"
+              min="0.1"
+              max="3"
+              step="0.1"
+              value="0.5"
+            >
+            <output id="turnSpeedLabel" class="speed-label" for="turnSpeedSlider">0.5秒</output>
+          </div>
           <button id="startBattleBtn" type="button" class="btn btn-primary">戦闘開始</button>
         </section>
 
-        <section class="panel">
-          <h2>ユニット情報</h2>
+        <section class="panel panel-unit-info">
           <div id="unitInfo" class="unit-info">
-            <p class="placeholder">マスを選択してください</p>
+            <p class="placeholder">下のユニットを選ぶか、マスを選択してください</p>
+          </div>
+          <div id="unitActions" class="unit-actions" hidden>
+            <button id="clearDestBtn" type="button" class="btn btn-secondary">移動先リセット</button>
+            <button id="sellUnitBtn" type="button" class="btn btn-danger">売却</button>
           </div>
         </section>
 
         <section class="panel panel-help">
           <h2>操作</h2>
           <ul class="help-list">
+            <li>ユニット: 剣兵・斧兵・槍兵・弓兵（剣→斧→槍→剣の三すくみ）</li>
             <li>下のユニット選択→黄枠内クリックで配置</li>
             <li>配置済み: ドラッグで位置変更</li>
-            <li>マップ外へドラッグで売却</li>
-            <li>クリック: 移動先の指定</li>
-            <li>「戦闘開始」で戦闘フェーズへ</li>
+            <li>マップ外へドラッグ、または「売却」ボタンで売却</li>
+            <li>クリック: 移動先の指定 / 「移動先リセット」で解除</li>
+            <li>「戦闘開始」で戦闘フェーズへ（戦闘中は一時停止 / 再開）</li>
+            <li>戦闘終了後は「戦闘終了」で指示フェーズへ</li>
+            <li>戦闘速度スライダー: 0.1〜3秒 / ターン</li>
             <li>矢印キー: カーソル / Esc: 解除</li>
           </ul>
         </section>

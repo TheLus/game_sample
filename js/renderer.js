@@ -1,4 +1,10 @@
-import { TILE_SIZE, Terrain, Team, ENEMY_AGGRO_RANGE, TERRAIN_BY_ID } from "./config.js";
+import {
+  TILE_SIZE,
+  Terrain,
+  Team,
+  ENEMY_AGGRO_RANGE,
+  TERRAIN_BY_ID,
+} from "./config.js";
 import { getTilesInManhattanRange } from "./pathfinding.js";
 
 function tileCenter(x, y) {
@@ -47,11 +53,14 @@ export class Renderer {
       destPy + TILE_SIZE / 2,
       preview ? 4 : 5,
       0,
-      Math.PI * 2
+      Math.PI * 2,
     );
     ctx.fill();
 
-    const points = [tileCenter(unit.x, unit.y), ...path.map((t) => tileCenter(t.x, t.y))];
+    const points = [
+      tileCenter(unit.x, unit.y),
+      ...path.map((t) => tileCenter(t.x, t.y)),
+    ];
 
     ctx.strokeStyle = lineColor;
     ctx.lineWidth = preview ? 2 : 3;
@@ -91,7 +100,7 @@ export class Renderer {
         unit.y,
         ENEMY_AGGRO_RANGE,
         mapW,
-        mapH
+        mapH,
       );
 
       for (const { x, y, dist } of tiles) {
@@ -121,6 +130,44 @@ export class Renderer {
       ctx.strokeRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
     }
     ctx.setLineDash([]);
+  }
+
+  drawBrickWall(ctx, px, py) {
+    const s = TILE_SIZE;
+    const inset = 3;
+    const inner = s - inset * 2;
+    const rowGap = inner / 3;
+    const colCount = 2;
+    const colW = inner / colCount;
+
+    ctx.fillStyle = Terrain.WALL.color;
+    ctx.fillRect(px, py, s, s);
+
+    ctx.strokeStyle = "#3a3a3a";
+    ctx.lineWidth = 2;
+
+    for (let row = 0; row < 3; row++) {
+      const yTop = py + inset + row * rowGap;
+      const yBot = yTop + rowGap;
+      const offset = row % 2 === 0 ? 0 : colW / 2;
+
+      for (let col = 0; col < colCount; col++) {
+        const x = px + inset + offset + col * colW;
+        if (x <= px + inset || x >= px + s - inset) continue;
+        ctx.beginPath();
+        ctx.moveTo(x, yTop);
+        ctx.lineTo(x, yBot);
+        ctx.stroke();
+      }
+    }
+
+    for (let i = 0; i <= 3; i++) {
+      const y = py + inset + i * rowGap;
+      ctx.beginPath();
+      ctx.moveTo(px + inset, y);
+      ctx.lineTo(px + s - inset, y);
+      ctx.stroke();
+    }
   }
 
   drawDeployZones(ctx, deployZones) {
@@ -205,21 +252,19 @@ export class Renderer {
         const terrain = TERRAIN_BY_ID[map[y][x]] ?? Terrain.PLAIN;
         const px = x * TILE_SIZE;
         const py = y * TILE_SIZE;
-        ctx.fillStyle = terrain.color;
-        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+        if (terrain.id === Terrain.WALL.id) {
+          this.drawBrickWall(ctx, px, py);
+        } else {
+          ctx.fillStyle = terrain.color;
+          ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+        }
         ctx.strokeStyle = "rgba(0,0,0,0.2)";
         ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
 
         if (terrain.id === 1) {
           ctx.fillStyle = "rgba(0,40,0,0.3)";
           ctx.beginPath();
-          ctx.arc(
-            px + TILE_SIZE / 2,
-            py + TILE_SIZE / 2,
-            6,
-            0,
-            Math.PI * 2
-          );
+          ctx.arc(px + TILE_SIZE / 2, py + TILE_SIZE / 2, 6, 0, Math.PI * 2);
           ctx.fill();
         }
 
@@ -260,7 +305,7 @@ export class Renderer {
         dragTile.x * TILE_SIZE,
         dragTile.y * TILE_SIZE,
         TILE_SIZE,
-        TILE_SIZE
+        TILE_SIZE,
       );
       this.drawUnit(ctx, dragUnit, dragTile.x, dragTile.y, 0.85);
     }
@@ -280,7 +325,7 @@ export class Renderer {
         cursor.x * TILE_SIZE + 2,
         cursor.y * TILE_SIZE + 2,
         TILE_SIZE - 4,
-        TILE_SIZE - 4
+        TILE_SIZE - 4,
       );
     }
   }

@@ -1,4 +1,4 @@
-import { UnitClass, Team } from "./config.js";
+import { UnitClass, Team, resolveClassKey } from "./config.js";
 
 let nextId = 1;
 
@@ -8,9 +8,13 @@ export function resetUnitIds() {
 
 export class Unit {
   constructor({ classKey, team, x, y }) {
-    const template = UnitClass[classKey];
+    const key = resolveClassKey(classKey);
+    const template = UnitClass[key];
+    if (!template) {
+      throw new Error(`Unknown unit class: ${classKey}`);
+    }
     this.id = nextId++;
-    this.classKey = classKey;
+    this.classKey = key;
     this.name = template.name;
     this.symbol = template.symbol;
     this.team = team;

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ステージ作成</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <nav class="site-nav">
+        <a href="index.html">ゲーム</a>
+        <a href="editor.html" class="active">ステージ作成</a>
+      </nav>
+    </header>
+
+    <main class="main editor-main">
+      <div class="game-column">
+        <div class="game-area">
+          <canvas id="editorCanvas" width="640" height="480"></canvas>
+          <div id="message" class="message" aria-live="polite"></div>
+        </div>
+
+        <div class="editor-toolbar">
+          <div class="editor-modes">
+            <button type="button" id="modeTerrain" class="mode-btn active">地形</button>
+            <button type="button" id="modeDeploy" class="mode-btn">配置エリア</button>
+            <button type="button" id="modeEnemy" class="mode-btn">敵ユニット</button>
+          </div>
+          <div id="terrainPalette" class="palette terrain-palette"></div>
+          <div id="enemyPalette" class="palette enemy-palette" hidden></div>
+        </div>
+      </div>
+
+      <aside class="sidebar">
+        <section class="panel">
+          <h2>ステージ</h2>
+          <label class="field-label" for="stageName">名前</label>
+          <input type="text" id="stageName" class="text-input" value="カスタムステージ">
+          <div class="stage-io-buttons">
+            <button id="saveBtn" type="button" class="btn btn-primary">保存</button>
+            <button id="loadBtn" type="button" class="btn btn-secondary">読込</button>
+          </div>
+          <input type="file" id="loadFileInput" accept=".json,application/json" hidden>
+          <button id="resetBtn" type="button" class="btn btn-secondary">デフォルトに戻す</button>
+          <button id="deleteEnemyBtn" type="button" class="btn btn-danger" hidden disabled>選択中の敵を削除</button>
+        </section>
+
+        <section class="panel panel-help">
+          <h2>操作</h2>
+          <ul class="help-list">
+            <li><strong>地形</strong>: ブラシ選択→マスをクリック/ドラッグ</li>
+            <li><strong>配置エリア</strong>: クリックで黄枠のON/OFF</li>
+            <li><strong>敵</strong>: 種類選択→空きマスに配置</li>
+            <li>敵クリック→移動先指定（戦闘時の目標）</li>
+            <li>敵ドラッグ: 位置変更 / マップ外で削除</li>
+            <li>敵の削除: 右クリック / Shift+クリック / Delete / 削除ボタン</li>
+            <li><strong>保存</strong>: JSONファイルをダウンロード（ゲームにも反映）</li>
+            <li><strong>読込</strong>: JSONファイルからステージを復元</li>
+          </ul>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script type="module" src="js/editorMain.js"></script>
+</body>
+</html>

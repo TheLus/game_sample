@@ -1,30 +1,39 @@
 import {
-  DEFAULT_MAP,
-  DEPLOY_ZONES,
-  INITIAL_ENEMIES,
   MAP_WIDTH,
   MAP_HEIGHT,
   TILE_SIZE,
-  STARTING_GOLD,
   UnitClass,
   Team,
 } from "./config.js";
+import {
+  loadActiveStage,
+  cloneGrid,
+  enemyDefsToSpawn,
+} from "./stage.js";
 import { createUnit, createUnits, resetUnitIds } from "./units.js";
 import {
-  getNextStepToward,
   getPathToward,
   getAttackTiles,
   getTerrain,
-  isWalkable,
+  hasAttackableFoe,
+  isTerrainWalkable,
 } from "./pathfinding.js";
 import { isImpassableTerrain } from "./config.js";
 import { executeCombat, previewCombat } from "./combat.js";
-import { stepEnemyUnit } from "./ai.js";
+import { resolveCombatMovement } from "./movement.js";
 import { canDeployAt } from "./deployment.js";
 import { Renderer } from "./renderer.js";
+import { debugLog, unitLabel, unitSnapshot } from "./debug.js";
 
-const TICK_MS = 1000;
+const TURN_SPEED_MIN = 0.1;
+const TURN_SPEED_MAX = 3;
+const TURN_SPEED_DEFAULT = 0.5;
 const STALE_TURN_LIMIT = 3;
+
+function formatTurnSpeed(seconds) {
+  const s = Math.round(seconds * 10) / 10;
+  return `${s}秒`;
+}
 const DRAG_THRESHOLD_PX = 6;
 
 export const GamePhase = {
@@ -38,12 +47,14 @@ export class Game {
     this.canvas = canvas;
     this.ui = ui;
     this.renderer = new Renderer(canvas);
-    this.map = DEFAULT_MAP.map((row) => [...row]);
-    this.deployZones = DEPLOY_ZONES.map((row) => [...row]);
+    this.stageData = loadActiveStage();
+    this.map = cloneGrid(this.stageData.map);
+    this.deployZones = cloneGrid(this.stageData.deployZones);
+    this.stageEnemyDefs = this.stageData.enemies;
     this.units = [];
-    this.gold = STARTING_GOLD;
+    this.gold = this.stageData.startingGold;
     this.selectedUnit = null;
-    this.shopClassKey = "SOLDIER";
+    this.shopClassKey = "SWORD";
     this.cursor = { x: 0, y: 0 };
     this.phase = GamePhase.INSTRUCTION;
     this.combatTurn = 0;
@@ -51,6 +62,10 @@ export class Game {
     this.previousTurnState = null;
     this.preCombatSnapshot = null;
     this.tickTimer = null;
+    this.tickIntervalSec = TURN_SPEED_DEFAULT;
+    this.combatPaused = false;
+    this.combatAwaitingEnd = false;
+    this.pendingCombatEndReason = null;
     this.dragUnit = null;
     this.dragPointer = null;
     this.dragMoved = false;
@@ -62,15 +77,22 @@ export class Game {
   start() {
     this.stopTickLoop();
     resetUnitIds();
-    this.units = createUnits(INITIAL_ENEMIES);
-    this.gold = STARTING_GOLD;
+    this.stageData = loadActiveStage();
+    this.map = cloneGrid(this.stageData.map);
+    this.deployZones = cloneGrid(this.stageData.deployZones);
+    this.stageEnemyDefs = this.stageData.enemies;
+    this.units = createUnits(enemyDefsToSpawn(this.stageEnemyDefs));
+    this.gold = this.stageData.startingGold;
     this.selectedUnit = null;
-    this.shopClassKey = "SOLDIER";
+    this.shopClassKey = "SWORD";
     this.phase = GamePhase.INSTRUCTION;
     this.combatTurn = 0;
     this.staleTurns = 0;
     this.previousTurnState = null;
     this.preCombatSnapshot = null;
+    this.combatPaused = false;
+    this.combatAwaitingEnd = false;
+    this.pendingCombatEndReason = null;
     this.clearDrag();
     this.ui.restartBtn.hidden = true;
     this.setMessage(
@@ -86,6 +108,12 @@ export class Game {
 
   isCombatPhase() {
     return this.phase === GamePhase.COMBAT;
+  }
+
+  isCombatTickRunning() {
+    return (
+      this.isCombatPhase() && !this.combatPaused && !this.combatAwaitingEnd
+    );
   }
 
   getPlayerUnits() {
@@ -106,9 +134,49 @@ export class Game {
     }
   }
 
+  getTickMs() {
+    return Math.round(this.tickIntervalSec * 1000);
+  }
+
+  startTickLoop() {
+    this.stopTickLoop();
+    this.tickTimer = setInterval(() => this.tick(), this.getTickMs());
+  }
+
+  setTurnSpeed(seconds) {
+    const clamped = Math.min(
+      TURN_SPEED_MAX,
+      Math.max(TURN_SPEED_MIN, Number(seconds) || TURN_SPEED_DEFAULT)
+    );
+    this.tickIntervalSec = Math.round(clamped * 10) / 10;
+    this.syncTurnSpeedUI();
+    if (this.isCombatTickRunning()) this.startTickLoop();
+  }
+
+  syncTurnSpeedUI() {
+    if (!this.ui.turnSpeedSlider) return;
+    this.ui.turnSpeedSlider.value = String(this.tickIntervalSec);
+    if (this.ui.turnSpeedLabel) {
+      this.ui.turnSpeedLabel.textContent = formatTurnSpeed(this.tickIntervalSec);
+    }
+  }
+
   bindEvents() {
+    this.syncTurnSpeedUI();
     this.ui.restartBtn.addEventListener("click", () => this.start());
-    this.ui.startBattleBtn.addEventListener("click", () => this.startCombatPhase());
+    this.ui.startBattleBtn.addEventListener("click", () =>
+      this.onBattleControlClick()
+    );
+    if (this.ui.turnSpeedSlider) {
+      this.ui.turnSpeedSlider.addEventListener("input", () => {
+        this.setTurnSpeed(Number(this.ui.turnSpeedSlider.value));
+      });
+    }
+    this.ui.clearDestBtn?.addEventListener("click", () =>
+      this.clearSelectedDestination()
+    );
+    this.ui.sellUnitBtn?.addEventListener("click", () => this.sellSelectedUnit());
+
     this.ui.unitShop.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-class-key]");
       if (!btn || !this.isInstructionPhase()) return;
@@ -160,7 +228,7 @@ export class Game {
 
   /** 敵を初期配置に戻し、味方・資金を戦闘開始前の状態に復元 */
   restoreAfterCombat() {
-    this.units = createUnits(INITIAL_ENEMIES);
+    this.units = createUnits(enemyDefsToSpawn(this.stageEnemyDefs));
 
     const snapshot = this.preCombatSnapshot;
     if (!snapshot) return;
@@ -206,10 +274,12 @@ export class Game {
       const u = this.selectedUnit;
       const sameAsOrder =
         u.destination?.x === x && u.destination?.y === y;
+      const occupant = this.getUnitAt(x, y);
       const canPreview =
         !sameAsOrder &&
-        isWalkable(this.map, this.units, u, x, y) &&
-        (x !== u.x || y !== u.y);
+        isTerrainWalkable(this.map, x, y) &&
+        (x !== u.x || y !== u.y) &&
+        (!occupant || occupant.id === u.id);
       if (canPreview) {
         const preview = getPathToward(this.map, this.units, u, x, y);
         if (preview && preview.length > 0) {
@@ -249,11 +319,52 @@ export class Game {
     );
     this.ui.unitShopBar.hidden =
       !this.isInstructionPhase() || this.phase === GamePhase.GAME_OVER;
-    this.ui.startBattleBtn.disabled = !this.isInstructionPhase();
-    this.ui.startBattleBtn.hidden = this.phase === GamePhase.GAME_OVER;
+    this.updateBattleControlButton();
 
     const unit = this.getUnitAt(this.cursor.x, this.cursor.y);
-    this.ui.renderUnitInfo(unit, this.selectedUnit);
+    const shopClassKey =
+      this.isInstructionPhase() && !this.selectedUnit
+        ? this.shopClassKey
+        : null;
+    this.ui.renderUnitInfo(unit, this.selectedUnit, shopClassKey);
+    this.updateUnitActionButtons();
+  }
+
+  updateUnitActionButtons() {
+    const actions = this.ui.unitActions;
+    if (!actions) return;
+
+    const unit = this.selectedUnit;
+    const show =
+      this.isInstructionPhase() && unit?.isAlive && unit.isPlayer;
+
+    actions.hidden = !show;
+    if (!show) return;
+
+    this.ui.clearDestBtn.disabled = !unit.destination;
+    this.ui.sellUnitBtn.disabled = false;
+  }
+
+  clearSelectedDestination() {
+    if (!this.isInstructionPhase()) return;
+    const unit = this.selectedUnit;
+    if (!unit?.isPlayer || !unit.isAlive) return;
+    if (!unit.destination) return;
+
+    unit.clearDestination();
+    this.setMessage(`${unit.name}の移動指示を解除しました`);
+    this.updateUI();
+    this.render();
+  }
+
+  sellSelectedUnit() {
+    if (!this.isInstructionPhase()) return;
+    const unit = this.selectedUnit;
+    if (!unit?.isPlayer || !unit.isAlive) return;
+
+    this.sellUnit(unit);
+    this.updateUI();
+    this.render();
   }
 
   getUnitAt(x, y) {
@@ -449,13 +560,15 @@ export class Game {
   trySetDestination(x, y) {
     if (!this.selectedUnit) return;
 
-    if (!isWalkable(this.map, this.units, this.selectedUnit, x, y)) {
+    if (!isTerrainWalkable(this.map, x, y)) {
       const terrain = getTerrain(this.map, x, y);
-      if (isImpassableTerrain(terrain)) {
-        this.setMessage(`${terrain.name}のため移動先に指定できません`);
-      } else {
-        this.setMessage("他のユニットがいるマスには指定できません");
-      }
+      this.setMessage(`${terrain?.name ?? "地形"}のため移動先に指定できません`);
+      return;
+    }
+
+    const occupant = this.getUnitAt(x, y);
+    if (occupant && occupant.id !== this.selectedUnit.id) {
+      this.setMessage("他のユニットがいるマスには指定できません");
       return;
     }
 
@@ -521,6 +634,58 @@ export class Game {
     }
   }
 
+  updateBattleControlButton() {
+    const btn = this.ui.startBattleBtn;
+    if (!btn) return;
+
+    if (this.phase === GamePhase.GAME_OVER) {
+      btn.hidden = true;
+      return;
+    }
+
+    btn.hidden = false;
+
+    if (this.isInstructionPhase()) {
+      btn.textContent = "戦闘開始";
+      btn.disabled = this.getPlayerUnits().length === 0;
+      return;
+    }
+
+    if (this.combatAwaitingEnd) {
+      btn.textContent = "戦闘終了";
+      btn.disabled = false;
+      return;
+    }
+
+    if (this.combatPaused) {
+      btn.textContent = "再開";
+      btn.disabled = false;
+      return;
+    }
+
+    btn.textContent = "一時停止";
+    btn.disabled = false;
+  }
+
+  onBattleControlClick() {
+    if (this.isInstructionPhase()) {
+      this.startCombatPhase();
+      return;
+    }
+    if (!this.isCombatPhase()) return;
+
+    if (this.combatAwaitingEnd) {
+      this.endCombatAndReturnToInstruction();
+      return;
+    }
+
+    if (this.combatPaused) {
+      this.resumeCombat();
+    } else {
+      this.pauseCombat();
+    }
+  }
+
   startCombatPhase() {
     if (!this.isInstructionPhase()) return;
 
@@ -534,51 +699,93 @@ export class Game {
     this.combatTurn = 0;
     this.staleTurns = 0;
     this.previousTurnState = this.captureState();
+    this.combatPaused = false;
+    this.combatAwaitingEnd = false;
+    this.pendingCombatEndReason = null;
     this.selectedUnit = null;
     this.clearDrag();
 
-    this.setMessage("戦闘フェーズ開始！（1秒に1ターン）");
+    this.setMessage(
+      `戦闘フェーズ開始！（${formatTurnSpeed(this.tickIntervalSec)}に1ターン）`
+    );
     this.updateUI();
     this.render();
 
-    this.tickTimer = setInterval(() => this.tick(), TICK_MS);
+    this.startTickLoop();
+  }
+
+  pauseCombat() {
+    if (!this.isCombatPhase() || this.combatAwaitingEnd || this.combatPaused) {
+      return;
+    }
+    this.combatPaused = true;
+    this.stopTickLoop();
+    this.setMessage("戦闘を一時停止しました");
+    this.updateUI();
+    this.render();
+  }
+
+  resumeCombat() {
+    if (!this.isCombatPhase() || this.combatAwaitingEnd || !this.combatPaused) {
+      return;
+    }
+    this.combatPaused = false;
+    this.startTickLoop();
+    this.setMessage(
+      `戦闘を再開しました（${formatTurnSpeed(this.tickIntervalSec)}に1ターン）`
+    );
+    this.updateUI();
+    this.render();
+  }
+
+  finishCombatPhase(reason) {
+    if (!this.isCombatPhase() || this.combatAwaitingEnd) return;
+
+    this.stopTickLoop();
+    this.combatPaused = false;
+    this.combatAwaitingEnd = true;
+    this.pendingCombatEndReason = reason;
+    this.setMessage(`${reason} — 「戦闘終了」で指示フェーズに戻れます`);
+    this.updateUI();
+    this.render();
   }
 
   endCombatAndReturnToInstruction(reason) {
+    const endReason =
+      reason ?? this.pendingCombatEndReason ?? "戦闘が終了しました";
+
     this.stopTickLoop();
     this.restoreAfterCombat();
     this.phase = GamePhase.INSTRUCTION;
     this.combatTurn = 0;
     this.staleTurns = 0;
     this.previousTurnState = null;
+    this.combatPaused = false;
+    this.combatAwaitingEnd = false;
+    this.pendingCombatEndReason = null;
     this.selectedUnit = null;
     this.clearDrag();
-    this.setMessage(`${reason} — 指示フェーズに戻りました`);
+    this.setMessage(`${endReason} — 指示フェーズに戻りました`);
     this.updateUI();
     this.render();
-  }
-
-  returnToInstructionAfterWipe(reason) {
-    this.endCombatAndReturnToInstruction(reason);
-  }
-
-  returnToInstruction(reason) {
-    this.endCombatAndReturnToInstruction(reason);
   }
 
   tick() {
     if (!this.isCombatPhase()) return;
 
     this.combatTurn++;
+    debugLog("turn", `======== 戦闘ターン ${this.combatTurn} 開始 ========`);
+    for (const u of this.units.filter((x) => x.isAlive)) {
+      debugLog("turn", unitLabel(u), unitSnapshot(u));
+    }
 
-    this.movePlayerUnits();
-    this.moveEnemyUnits();
+    resolveCombatMovement(this.map, this.units);
     this.resolveCombat();
 
     if (this.phase === GamePhase.GAME_OVER) return;
 
     if (!this.units.some((u) => u.isAlive && u.isPlayer)) {
-      this.returnToInstructionAfterWipe("味方が全滅しました");
+      this.finishCombatPhase("味方が全滅しました");
       return;
     }
 
@@ -591,41 +798,13 @@ export class Game {
     this.previousTurnState = stateAfter;
 
     if (this.staleTurns >= STALE_TURN_LIMIT) {
-      this.returnToInstruction("3ターン連続で変化がありませんでした");
+      this.finishCombatPhase("3ターン連続で変化がありませんでした");
       return;
     }
 
     this.setMessage(`戦闘フェーズ — ターン ${this.combatTurn}`);
     this.updateUI();
     this.render();
-  }
-
-  movePlayerUnits() {
-    for (const unit of this.units.filter((u) => u.isAlive && u.isPlayer)) {
-      if (!unit.destination) continue;
-
-      const { x: destX, y: destY } = unit.destination;
-      if (unit.x === destX && unit.y === destY) {
-        unit.clearDestination();
-        continue;
-      }
-
-      const step = getNextStepToward(this.map, this.units, unit, destX, destY);
-      if (!step) continue;
-
-      unit.x = step.x;
-      unit.y = step.y;
-
-      if (unit.x === destX && unit.y === destY) {
-        unit.clearDestination();
-      }
-    }
-  }
-
-  moveEnemyUnits() {
-    for (const unit of this.units.filter((u) => u.isAlive && !u.isPlayer)) {
-      stepEnemyUnit(this.map, unit, this.units);
-    }
   }
 
   findAttackTarget(attacker) {
@@ -638,7 +817,7 @@ export class Game {
     );
     if (inRange.length === 0) return null;
 
-    return inRange.reduce((best, foe) => {
+    const chosen = inRange.reduce((best, foe) => {
       const preview = previewCombat(
         attacker,
         foe,
@@ -657,33 +836,106 @@ export class Game {
         best.x,
         best.y
       );
-      const score = preview.damage * (preview.hit / 100);
-      const bestScore = bestPreview.damage * (bestPreview.hit / 100);
+      const score = preview.damage;
+      const bestScore = bestPreview.damage;
       return score > bestScore ? foe : best;
     });
+
+    if (inRange.length > 1) {
+      debugLog("combat", `${unitLabel(attacker)} のターゲット選択`, {
+        candidates: inRange.map((f) => {
+          const p = previewCombat(
+            attacker,
+            f,
+            this.map,
+            attacker.x,
+            attacker.y,
+            f.x,
+            f.y
+          );
+          return {
+            unit: unitLabel(f),
+            expectedDamage: p.damage,
+            score: p.damage,
+          };
+        }),
+        chosen: unitLabel(chosen),
+      });
+    }
+
+    return chosen;
   }
 
   resolveCombat() {
-    const attackers = this.units.filter((u) => u.isAlive);
-    for (const unit of attackers) {
+    debugLog("combat", "--- 戦闘解決フェーズ ---");
+    const orders = [];
+    for (const unit of this.units) {
       if (!unit.isAlive) continue;
-
       const target = this.findAttackTarget(unit);
-      if (!target || !target.isAlive) continue;
+      if (target?.isAlive) {
+        orders.push({ attacker: unit, target });
+      } else {
+        debugLog("combat", `${unitLabel(unit)} — 攻撃対象なし`);
+      }
+    }
 
+    debugLog(
+      "combat",
+      `攻撃順（${orders.length}件）`,
+      orders.map(({ attacker, target }, i) => ({
+        order: i + 1,
+        attacker: unitLabel(attacker),
+        target: unitLabel(target),
+        attackerHp: attacker.hp,
+        targetHp: target.hp,
+      }))
+    );
+
+    for (const { attacker, target } of orders) {
+      if (target.hp <= 0) {
+        debugLog(
+          "combat",
+          `スキップ: ${unitLabel(attacker)} → ${unitLabel(target)}（対象は既に HP≤0）`
+        );
+        continue;
+      }
+
+      debugLog(
+        "combat",
+        `実行: ${unitLabel(attacker)} → ${unitLabel(target)}`
+      );
       executeCombat(
-        unit,
+        attacker,
         target,
         this.map,
-        unit.x,
-        unit.y,
+        attacker.x,
+        attacker.y,
         target.x,
         target.y,
         () => {}
       );
-
-      if (this.checkVictory()) return;
     }
+
+    const fallen = this.units.filter((u) => u.hp <= 0);
+    for (const unit of fallen) {
+      unit.hp = 0;
+    }
+    if (fallen.length > 0) {
+      debugLog(
+        "combat",
+        "死亡判定（全攻撃後）",
+        fallen.map((u) => unitLabel(u))
+      );
+    }
+
+    const survivors = this.units.filter((u) => u.isAlive);
+    debugLog(
+      "combat",
+      "ターン終了時の生存者",
+      survivors.map((u) => unitLabel(u))
+    );
+
+    if (this.checkVictory()) return;
   }
 
   checkVictory() {
@@ -697,6 +949,9 @@ export class Game {
 
   gameClear() {
     this.stopTickLoop();
+    this.combatPaused = false;
+    this.combatAwaitingEnd = false;
+    this.pendingCombatEndReason = null;
     this.phase = GamePhase.GAME_OVER;
     this.ui.restartBtn.hidden = false;
     this.ui.startBattleBtn.hidden = true;

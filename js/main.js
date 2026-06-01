@@ -1,5 +1,12 @@
 import { Game } from "./game.js";
-import { UnitClass, SHOP_UNIT_KEYS } from "./config.js";
+import { UnitClass, SHOP_UNIT_KEYS, Weapon } from "./config.js";
+
+const WEAPON_LABELS = {
+  [Weapon.SWORD]: "剣",
+  [Weapon.AXE]: "斧",
+  [Weapon.LANCE]: "槍",
+  [Weapon.BOW]: "弓",
+};
 
 const canvas = document.getElementById("gameCanvas");
 const unitShop = document.getElementById("unitShop");
@@ -19,7 +26,12 @@ const ui = {
   unitShop,
   unitShopBar: document.getElementById("unitShopBar"),
   startBattleBtn: document.getElementById("startBattleBtn"),
+  turnSpeedSlider: document.getElementById("turnSpeedSlider"),
+  turnSpeedLabel: document.getElementById("turnSpeedLabel"),
   restartBtn: document.getElementById("restartBtn"),
+  unitActions: document.getElementById("unitActions"),
+  clearDestBtn: document.getElementById("clearDestBtn"),
+  sellUnitBtn: document.getElementById("sellUnitBtn"),
 
   renderGold(gold) {
     this.goldText.textContent = `資金: ${gold}G`;
@@ -34,32 +46,77 @@ const ui = {
     }
   },
 
-  renderUnitInfo(unit, selected) {
-    const el = this.unitInfo;
-    const display = selected ?? unit;
-    if (!display) {
-      el.innerHTML = '<p class="placeholder">マスを選択してください</p>';
-      return;
+  renderClassPreview(classKey) {
+    const t = UnitClass[classKey];
+    if (!t) {
+      return '<p class="placeholder">ユニットを選択してください</p>';
     }
-    const hpPct = Math.round((display.hp / display.maxHp) * 100);
-    const dest = display.destination
-      ? `(${display.destination.x}, ${display.destination.y})`
-      : "なし";
-    const costLine = display.isPlayer
-      ? `<dt>配置コスト</dt><dd>${display.deployCost}G</dd>`
-      : "";
-    el.innerHTML = `
-      <p class="name">${display.name}（${display.team === "player" ? "味方" : "敵"}）</p>
-      <div class="hp-bar"><div class="hp-fill" style="width:${hpPct}%"></div></div>
+    const range = t.range ?? 1;
+    return `
+      <p class="name">${t.symbol} ${t.name}（配置前）</p>
+      <div class="hp-bar"><div class="hp-fill" style="width:100%"></div></div>
       <dl>
-        <dt>HP</dt><dd>${display.hp} / ${display.maxHp}</dd>
-        <dt>攻撃</dt><dd>${display.atk}</dd>
-        <dt>防御</dt><dd>${display.def}</dd>
-        <dt>射程</dt><dd>${display.attackRange}</dd>
-        ${costLine}
-        <dt>移動先</dt><dd>${display.isPlayer ? dest : "—"}</dd>
+        <dt>HP</dt><dd>${t.hp}</dd>
+        <dt>攻撃</dt><dd>${t.atk}</dd>
+        <dt>防御</dt><dd>${t.def}</dd>
+        <dt>射程</dt><dd>${range}</dd>
+        <dt>武器</dt><dd>${WEAPON_LABELS[t.weapon] ?? t.weapon}</dd>
+        <dt>配置コスト</dt><dd>${t.cost}G</dd>
       </dl>
     `;
+  },
+
+  renderUnitInfo(unit, selected, shopClassKey) {
+    const el = this.unitInfo;
+
+    if (selected?.isAlive) {
+      const hpPct = Math.round((selected.hp / selected.maxHp) * 100);
+      const dest = selected.destination
+        ? `(${selected.destination.x}, ${selected.destination.y})`
+        : "なし";
+      const costLine = selected.isPlayer
+        ? `<dt>配置コスト</dt><dd>${selected.deployCost}G</dd>`
+        : "";
+      const weaponLine = selected.weapon
+        ? `<dt>武器</dt><dd>${WEAPON_LABELS[selected.weapon] ?? selected.weapon}</dd>`
+        : "";
+      el.innerHTML = `
+        <p class="name">${selected.name}（${selected.team === "player" ? "味方" : "敵"}）</p>
+        <div class="hp-bar"><div class="hp-fill" style="width:${hpPct}%"></div></div>
+        <dl>
+          <dt>HP</dt><dd>${selected.hp} / ${selected.maxHp}</dd>
+          <dt>攻撃</dt><dd>${selected.atk}</dd>
+          <dt>防御</dt><dd>${selected.def}</dd>
+          <dt>射程</dt><dd>${selected.attackRange}</dd>
+          ${weaponLine}
+          ${costLine}
+          <dt>移動先</dt><dd>${selected.isPlayer ? dest : "—"}</dd>
+        </dl>
+      `;
+      return;
+    }
+
+    if (shopClassKey) {
+      el.innerHTML = this.renderClassPreview(shopClassKey);
+      return;
+    }
+
+    if (unit?.isAlive) {
+      const hpPct = Math.round((unit.hp / unit.maxHp) * 100);
+      el.innerHTML = `
+        <p class="name">${unit.name}（${unit.team === "player" ? "味方" : "敵"}）</p>
+        <div class="hp-bar"><div class="hp-fill" style="width:${hpPct}%"></div></div>
+        <dl>
+          <dt>HP</dt><dd>${unit.hp} / ${unit.maxHp}</dd>
+          <dt>攻撃</dt><dd>${unit.atk}</dd>
+          <dt>防御</dt><dd>${unit.def}</dd>
+          <dt>射程</dt><dd>${unit.attackRange}</dd>
+        </dl>
+      `;
+      return;
+    }
+
+    el.innerHTML = '<p class="placeholder">下のユニットを選ぶか、マスを選択してください</p>';
   },
 };
 

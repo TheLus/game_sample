@@ -5,16 +5,18 @@ export function getTerrain(map, x, y) {
   return TERRAIN_BY_ID[map[y][x]] ?? Terrain.PLAIN;
 }
 
-export function isWalkable(map, units, unit, x, y) {
+/** 地形のみで通行可能か（経路探索はユニットを無視する） */
+export function isTerrainWalkable(map, x, y) {
   const terrain = getTerrain(map, x, y);
-  if (!terrain || isImpassableTerrain(terrain)) return false;
-  const blocker = units.find(
-    (u) => u.isAlive && u.id !== unit.id && u.x === x && u.y === y
-  );
-  return !blocker;
+  return Boolean(terrain && !isImpassableTerrain(terrain));
 }
 
-function findPathParents(map, units, unit, destX, destY) {
+/** @deprecated 互換用。ユニットは考慮しない（isTerrainWalkable と同じ） */
+export function isWalkable(map, _units, _unit, x, y) {
+  return isTerrainWalkable(map, x, y);
+}
+
+function findPathParents(map, unit, destX, destY) {
   const startKey = `${unit.x},${unit.y}`;
   const destKey = `${destX},${destY}`;
 
@@ -48,13 +50,7 @@ function findPathParents(map, units, unit, destX, destY) {
       const nkey = `${nx},${ny}`;
       if (parent.has(nkey)) continue;
 
-      const terrain = getTerrain(map, nx, ny);
-      if (isImpassableTerrain(terrain)) continue;
-
-      const blocked = units.some(
-        (u) => u.isAlive && u.id !== unit.id && u.x === nx && u.y === ny
-      );
-      if (blocked && nkey !== destKey) continue;
+      if (!isTerrainWalkable(map, nx, ny)) continue;
 
       parent.set(nkey, key);
       queue.push({ x: nx, y: ny });
@@ -68,10 +64,9 @@ function findPathParents(map, units, unit, destX, destY) {
  * 現在地から目的地までの経路（開始マス除く、目的地を含む）
  * @returns {{ x: number, y: number }[] | null}
  */
-export function getPathToward(map, units, unit, destX, destY) {
+export function getPathToward(map, _units, unit, destX, destY) {
   const { parent, found, startKey, destKey } = findPathParents(
     map,
-    units,
     unit,
     destX,
     destY
@@ -154,4 +149,15 @@ export function getAttackTiles(unit, fromX, fromY) {
   }
 
   return tiles;
+}
+
+/** 現在地から攻撃できる敵がいるか */
+export function hasAttackableFoe(unit, units) {
+  const attackTiles = getAttackTiles(unit, unit.x, unit.y);
+  return units.some(
+    (u) =>
+      u.isAlive &&
+      u.team !== unit.team &&
+      attackTiles.some((t) => t.x === u.x && t.y === u.y)
+  );
 }
