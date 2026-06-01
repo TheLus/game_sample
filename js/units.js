@@ -2,6 +2,10 @@ import { UnitClass, Team } from "./config.js";
 
 let nextId = 1;
 
+export function resetUnitIds() {
+  nextId = 1;
+}
+
 export class Unit {
   constructor({ classKey, team, x, y }) {
     const template = UnitClass[classKey];
@@ -19,6 +23,7 @@ export class Unit {
     this.skill = template.skill;
     this.speed = template.speed;
     this.attackRange = template.range ?? 1;
+    this.deployCost = template.cost ?? 0;
     this.x = x;
     this.y = y;
     /** @type {{ x: number, y: number } | null} 味方のみ使用 */
@@ -42,6 +47,10 @@ export class Unit {
   }
 }
 
+export function createUnit(definition) {
+  return new Unit(definition);
+}
+
 export function createUnits(definitions) {
-  return definitions.map((d) => new Unit(d));
+  return definitions.map((d) => createUnit(d));
 }

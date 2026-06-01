@@ -123,8 +123,77 @@ export class Renderer {
     ctx.setLineDash([]);
   }
 
+  drawDeployZones(ctx, deployZones) {
+    const isDeploy = (x, y) => deployZones[y]?.[x] === 1;
+
+    for (let y = 0; y < deployZones.length; y++) {
+      for (let x = 0; x < deployZones[y].length; x++) {
+        if (!isDeploy(x, y)) continue;
+        const px = x * TILE_SIZE;
+        const py = y * TILE_SIZE;
+        ctx.fillStyle = "rgba(255, 235, 80, 0.22)";
+        ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+      }
+    }
+
+    ctx.strokeStyle = "#ffeb3b";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "square";
+    ctx.beginPath();
+
+    for (let y = 0; y < deployZones.length; y++) {
+      for (let x = 0; x < deployZones[y].length; x++) {
+        if (!isDeploy(x, y)) continue;
+        const px = x * TILE_SIZE;
+        const py = y * TILE_SIZE;
+
+        if (!isDeploy(x, y - 1)) {
+          ctx.moveTo(px, py);
+          ctx.lineTo(px + TILE_SIZE, py);
+        }
+        if (!isDeploy(x + 1, y)) {
+          ctx.moveTo(px + TILE_SIZE, py);
+          ctx.lineTo(px + TILE_SIZE, py + TILE_SIZE);
+        }
+        if (!isDeploy(x, y + 1)) {
+          ctx.moveTo(px + TILE_SIZE, py + TILE_SIZE);
+          ctx.lineTo(px, py + TILE_SIZE);
+        }
+        if (!isDeploy(x - 1, y)) {
+          ctx.moveTo(px, py + TILE_SIZE);
+          ctx.lineTo(px, py);
+        }
+      }
+    }
+
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(200, 160, 0, 0.6)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    for (let y = 0; y < deployZones.length; y++) {
+      for (let x = 0; x < deployZones[y].length; x++) {
+        if (!isDeploy(x, y)) continue;
+        const px = x * TILE_SIZE;
+        const py = y * TILE_SIZE;
+        ctx.strokeRect(px + 1.5, py + 1.5, TILE_SIZE - 3, TILE_SIZE - 3);
+      }
+    }
+    ctx.setLineDash([]);
+  }
+
   draw(state) {
-    const { map, units, cursor, selectedUnit, movementPaths = [] } = state;
+    const {
+      map,
+      deployZones,
+      showDeployZones,
+      units,
+      cursor,
+      selectedUnit,
+      dragUnit,
+      dragTile,
+      movementPaths = [],
+    } = state;
     const ctx = this.ctx;
     const w = map[0].length * TILE_SIZE;
     const h = map.length * TILE_SIZE;
@@ -165,6 +234,10 @@ export class Renderer {
       }
     }
 
+    if (showDeployZones && deployZones) {
+      this.drawDeployZones(ctx, deployZones);
+    }
+
     this.drawEnemyAggroRanges(ctx, map, units);
 
     const drawnPreview = new Set();
@@ -177,32 +250,22 @@ export class Renderer {
     }
 
     for (const unit of units.filter((u) => u.isAlive)) {
-      const px = unit.x * TILE_SIZE;
-      const py = unit.y * TILE_SIZE;
-      const color = unit.team === Team.PLAYER ? "#4a9eff" : "#ff6b4a";
-
-      ctx.fillStyle = color;
-      ctx.fillRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
-      ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
-
-      ctx.fillStyle = "#fff";
-      ctx.font = "bold 14px sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(unit.symbol, px + TILE_SIZE / 2, py + TILE_SIZE / 2);
-
-      const barW = TILE_SIZE - 8;
-      const hpRatio = unit.hp / unit.maxHp;
-      ctx.fillStyle = "#333";
-      ctx.fillRect(px + 4, py + TILE_SIZE - 6, barW, 4);
-      ctx.fillStyle =
-        hpRatio > 0.5 ? "#4ade80" : hpRatio > 0.25 ? "#fbbf24" : "#ef4444";
-      ctx.fillRect(px + 4, py + TILE_SIZE - 6, barW * hpRatio, 4);
+      const isDragging = dragUnit && unit.id === dragUnit.id;
+      this.drawUnit(ctx, unit, unit.x, unit.y, isDragging ? 0.35 : 1);
     }
 
-    if (selectedUnit?.isAlive) {
+    if (dragUnit && dragTile) {
+      ctx.fillStyle = "rgba(74, 158, 255, 0.2)";
+      ctx.fillRect(
+        dragTile.x * TILE_SIZE,
+        dragTile.y * TILE_SIZE,
+        TILE_SIZE,
+        TILE_SIZE
+      );
+      this.drawUnit(ctx, dragUnit, dragTile.x, dragTile.y, 0.85);
+    }
+
+    if (selectedUnit?.isAlive && selectedUnit.id !== dragUnit?.id) {
       const px = selectedUnit.x * TILE_SIZE;
       const py = selectedUnit.y * TILE_SIZE;
       ctx.strokeStyle = "#ffeb3b";
@@ -210,7 +273,7 @@ export class Renderer {
       ctx.strokeRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
     }
 
-    if (cursor) {
+    if (cursor && !dragUnit) {
       ctx.strokeStyle = "#fff";
       ctx.lineWidth = 2;
       ctx.strokeRect(
@@ -220,5 +283,36 @@ export class Renderer {
         TILE_SIZE - 4
       );
     }
+  }
+
+  drawUnit(ctx, unit, tileX, tileY, alpha = 1) {
+    const px = tileX * TILE_SIZE;
+    const py = tileY * TILE_SIZE;
+    const color = unit.team === Team.PLAYER ? "#4a9eff" : "#ff6b4a";
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    ctx.fillStyle = color;
+    ctx.fillRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 14px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(unit.symbol, px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+
+    const barW = TILE_SIZE - 8;
+    const hpRatio = unit.hp / unit.maxHp;
+    ctx.fillStyle = "#333";
+    ctx.fillRect(px + 4, py + TILE_SIZE - 6, barW, 4);
+    ctx.fillStyle =
+      hpRatio > 0.5 ? "#4ade80" : hpRatio > 0.25 ? "#fbbf24" : "#ef4444";
+    ctx.fillRect(px + 4, py + TILE_SIZE - 6, barW * hpRatio, 4);
+
+    ctx.restore();
   }
 }

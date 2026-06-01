@@ -7,6 +7,9 @@ export const MAP_HEIGHT = 12;
 /** 敵が反応する範囲（マンハッタン距離） */
 export const ENEMY_AGGRO_RANGE = 5;
 
+/** 配置フェーズの初期資金 */
+export const STARTING_GOLD = 400;
+
 export const Team = {
   PLAYER: "player",
   ENEMY: "enemy",
@@ -64,6 +67,7 @@ export const UnitClass = {
     def: 4,
     skill: 8,
     speed: 9,
+    cost: 150,
   },
   SOLDIER: {
     name: "兵士",
@@ -75,6 +79,7 @@ export const UnitClass = {
     def: 5,
     skill: 5,
     speed: 5,
+    cost: 80,
   },
   FIGHTER: {
     name: "戦士",
@@ -86,6 +91,7 @@ export const UnitClass = {
     def: 3,
     skill: 4,
     speed: 6,
+    cost: 90,
   },
   ARCHER: {
     name: "弓兵",
@@ -98,8 +104,12 @@ export const UnitClass = {
     skill: 7,
     speed: 7,
     range: 2,
+    cost: 100,
   },
 };
+
+/** ショップで購入できるユニット（表示順） */
+export const SHOP_UNIT_KEYS = ["SOLDIER", "FIGHTER", "ARCHER", "LORD"];
 
 /** 地形IDの2次元マップ（5=川 は通行不可） */
 export const DEFAULT_MAP = [
@@ -117,10 +127,23 @@ export const DEFAULT_MAP = [
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 ];
 
-export const INITIAL_UNITS = [
-  { classKey: "LORD", team: Team.PLAYER, x: 2, y: 5 },
-  { classKey: "SOLDIER", team: Team.PLAYER, x: 3, y: 6 },
-  { classKey: "ARCHER", team: Team.PLAYER, x: 2, y: 7 },
+/** 1=味方配置可能エリア */
+export const DEPLOY_ZONES = [
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+];
+
+export const INITIAL_ENEMIES = [
   { classKey: "FIGHTER", team: Team.ENEMY, x: 12, y: 3 },
   { classKey: "SOLDIER", team: Team.ENEMY, x: 13, y: 4 },
   { classKey: "ARCHER", team: Team.ENEMY, x: 14, y: 5 },

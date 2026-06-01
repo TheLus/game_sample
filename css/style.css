@@ -54,6 +54,12 @@ body {
   justify-content: center;
 }
 
+.game-column {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .game-area {
   position: relative;
 }
@@ -61,10 +67,15 @@ body {
 #gameCanvas {
   display: block;
   border: 3px solid var(--border);
-  border-radius: 4px;
+  border-radius: 4px 4px 0 0;
   cursor: crosshair;
   image-rendering: pixelated;
   background: #2d4a3e;
+  touch-action: none;
+}
+
+#gameCanvas.dragging {
+  cursor: grabbing;
 }
 
 .message {
@@ -117,6 +128,74 @@ body {
 
 .phase-text.enemy {
   color: var(--enemy);
+}
+
+.gold-text {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #fbbf24;
+  margin-bottom: 0.5rem;
+}
+
+.unit-shop-bar {
+  width: 640px;
+  max-width: 100%;
+  background: var(--panel);
+  border: 3px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  padding: 0.5rem 0.75rem;
+}
+
+.shop-bar-label {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.4rem;
+}
+
+.unit-shop {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.shop-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 140px;
+  flex: 1;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.shop-btn:hover:not(:disabled) {
+  border-color: var(--player);
+}
+
+.shop-btn.selected {
+  border-color: var(--player);
+  background: rgba(74, 158, 255, 0.15);
+}
+
+.shop-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.shop-cost {
+  color: #fbbf24;
+  font-weight: bold;
 }
 
 .unit-info .placeholder {

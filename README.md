@@ -20,22 +20,27 @@ python3 -m http.server 8080
 
 ### Instruction phase
 
-- **Click ally**: Select unit
-- **Click tile**: Set destination (path shown on the map)
-- **Click selected ally’s tile**: Clear destination order
-- **Start Battle**: Begin the combat phase
+Placement and movement orders happen in the same phase:
+
+- **Unit bar (below map)**: Select a unit type, then **click a yellow-bordered deploy tile** to place it (costs gold)
+- **Drag a placed ally**: Move it to another deploy tile
+- **Drag a placed ally off the map**: Sell it (full deploy cost refunded)
+- **Click an ally**: Select it, then **click a tile** to set its combat movement destination
+- **Start Battle**: Begin the combat phase (requires at least one ally)
 - **Arrow keys**: Move cursor
-- **Esc**: Deselect unit
+- **Esc**: Deselect
 
 ### Combat phase
 
 - Runs automatically at **one turn per second** (movement and combat)
-- Returns to the instruction phase if allies are wiped out, or if there is **no change for 3 turns in a row**
+- Returns to **instruction** when combat ends (enemies reset; allies, gold, and orders restored to pre-combat state)
+- Applies after allies are wiped out or **3 turns with no change**
 - **Clear all enemies** during combat to win the game
 
 ## Features
 
-- Two-phase loop: instruction → combat → instruction
+- Instruction-phase deployment with gold, deploy zones, drag reposition, and drag-to-sell
+- Two-phase loop: instruction → combat
 - Grid map with terrain (plain, forest, mountain, fort, river — water is impassable)
 - Ally destination orders with pathfinding (1 tile per turn during combat)
 - Automatic combat (counterattacks, hit rate, weapon triangle)
@@ -48,6 +53,7 @@ python3 -m http.server 8080
 | `index.html` | Page layout |
 | `css/style.css` | UI styles |
 | `js/config.js` | Map and unit definitions |
+| `js/deployment.js` | Deploy zone helpers |
 | `js/units.js` | Unit class |
 | `js/pathfinding.js` | Pathfinding and attack range |
 | `js/combat.js` | Combat logic |

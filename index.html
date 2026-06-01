@@ -13,15 +13,21 @@
     </header>
 
     <main class="main">
-      <div class="game-area">
-        <canvas id="gameCanvas" width="640" height="480"></canvas>
-        <div id="message" class="message" aria-live="polite"></div>
+      <div class="game-column">
+        <div class="game-area">
+          <canvas id="gameCanvas" width="640" height="480"></canvas>
+          <div id="message" class="message" aria-live="polite"></div>
+        </div>
+
+        <div id="unitShopBar" class="unit-shop-bar">
+          <p class="shop-bar-label">配置するユニット</p>
+          <div id="unitShop" class="unit-shop"></div>
+        </div>
       </div>
 
       <aside class="sidebar">
         <section class="panel">
-          <h2>フェーズ</h2>
-          <p id="phaseText" class="phase-text">—</p>
+          <p id="goldText" class="gold-text">資金: —</p>
           <button id="startBattleBtn" type="button" class="btn btn-primary">戦闘開始</button>
         </section>
 
@@ -35,17 +41,12 @@
         <section class="panel panel-help">
           <h2>操作</h2>
           <ul class="help-list">
-            <li>味方クリック: ユニット選択</li>
-            <li>マスクリック: 移動先指定（経路を表示）</li>
-            <li>川には進入・指定不可</li>
-            <li>自分のマス: 移動指示の解除</li>
+            <li>下のユニット選択→黄枠内クリックで配置</li>
+            <li>配置済み: ドラッグで位置変更</li>
+            <li>マップ外へドラッグで売却</li>
+            <li>クリック: 移動先の指定</li>
             <li>「戦闘開始」で戦闘フェーズへ</li>
-            <li>戦闘中: 1秒に1ターン自動進行</li>
-            <li>3ターン変化なし / 味方全滅で指示へ</li>
-            <li>敵全滅でゲームクリア</li>
-            <li>敵: 待機、赤範囲内で接近・攻撃</li>
-            <li>矢印キー: カーソル移動</li>
-            <li>Esc: 選択解除</li>
+            <li>矢印キー: カーソル / Esc: 解除</li>
           </ul>
         </section>
       </aside>
