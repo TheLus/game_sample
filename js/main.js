@@ -1,5 +1,6 @@
 import { Game } from "./game.js";
 import { UnitClass, SHOP_UNIT_KEYS, Weapon } from "./config.js";
+import { fillStageSelect, getGameStageId, setGameStageId } from "./stage.js";
 
 const WEAPON_LABELS = {
   [Weapon.SWORD]: "剣",
@@ -9,16 +10,6 @@ const WEAPON_LABELS = {
 };
 
 const canvas = document.getElementById("gameCanvas");
-const unitShop = document.getElementById("unitShop");
-
-unitShop.innerHTML = SHOP_UNIT_KEYS.map(
-  (key) =>
-    `<button type="button" class="shop-btn" data-class-key="${key}">
-      <span class="shop-name">${UnitClass[key].symbol} ${UnitClass[key].name}</span>
-      <span class="shop-cost">${UnitClass[key].cost}G</span>
-    </button>`
-).join("");
-
 const ui = {
   messageEl: document.getElementById("message"),
   goldText: document.getElementById("goldText"),
@@ -29,6 +20,7 @@ const ui = {
   turnSpeedSlider: document.getElementById("turnSpeedSlider"),
   turnSpeedLabel: document.getElementById("turnSpeedLabel"),
   restartBtn: document.getElementById("restartBtn"),
+  gameStageSelect: document.getElementById("gameStageSelect"),
   unitActions: document.getElementById("unitActions"),
   clearDestBtn: document.getElementById("clearDestBtn"),
   sellUnitBtn: document.getElementById("sellUnitBtn"),
@@ -37,7 +29,18 @@ const ui = {
     this.goldText.textContent = `資金: ${gold}G`;
   },
 
-  renderShop(selectedKey, gold, enabled) {
+  renderShop(shopUnitKeys, selectedKey, gold, enabled) {
+    const keys = shopUnitKeys?.length ? shopUnitKeys : SHOP_UNIT_KEYS;
+    this.unitShop.innerHTML = keys
+      .map(
+        (key) =>
+          `<button type="button" class="shop-btn" data-class-key="${key}">
+      <span class="shop-name">${UnitClass[key].symbol} ${UnitClass[key].name}</span>
+      <span class="shop-cost">${UnitClass[key].cost}G</span>
+    </button>`
+      )
+      .join("");
+
     for (const btn of this.unitShop.querySelectorAll(".shop-btn")) {
       const key = btn.dataset.classKey;
       const cost = UnitClass[key].cost;
@@ -120,4 +123,13 @@ const ui = {
   },
 };
 
-new Game(canvas, ui);
+fillStageSelect(ui.gameStageSelect, getGameStageId());
+
+const game = new Game(canvas, ui);
+
+ui.gameStageSelect?.addEventListener("change", () => {
+  const id = ui.gameStageSelect.value;
+  if (!setGameStageId(id)) return;
+  game.restartForStage();
+  fillStageSelect(ui.gameStageSelect, id);
+});

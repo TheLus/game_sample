@@ -7,7 +7,9 @@ A 2D tactical RPG built with HTML, Canvas, and JavaScript.
 - **Game**: `index.html` — play the tactical simulation
 - **Stage editor**: `editor.html` — design maps, deploy zones, and enemies
 
-Use the navigation links at the top of each page to switch between them. In the stage editor, **Save** downloads a `.json` file and writes the stage to `localStorage`; **Load** restores a stage from a JSON file (and updates `localStorage`). The game loads the custom stage from `localStorage` automatically.
+Use the navigation links at the top of each page to switch between them.
+
+**Stages** are stored in the browser as a library (`localStorage` key `tacticalStagesLibrary`). The game page lets you pick which stage to play; the editor lets you pick which stage to edit and add new stages with **ステージ追加**. **Save** exports **all stages in one JSON file** (`stages.json`); **Load** replaces the entire library from that format.
 
 ## Getting Started
 

@@ -3,6 +3,7 @@ import {
   UnitClass,
   TERRAIN_BRUSH_KEYS,
   ENEMY_EDITOR_KEYS,
+  SHOP_UNIT_KEYS,
 } from "./config.js";
 import { StageEditor } from "./editor.js";
 
@@ -28,14 +29,28 @@ document.getElementById("enemyPalette").innerHTML = ENEMY_EDITOR_KEYS.map(
   }
 ).join("");
 
+document.getElementById("shopUnitsEditor").innerHTML = SHOP_UNIT_KEYS.map(
+  (key) => {
+    const u = UnitClass[key];
+    return `<label class="shop-unit-check">
+      <input type="checkbox" data-class-key="${key}" checked>
+      <span>${u.symbol} ${u.name}（${u.cost}G）</span>
+    </label>`;
+  }
+).join("");
+
 const ui = {
   messageEl: document.getElementById("message"),
   stageNameInput: document.getElementById("stageName"),
+  startingGoldInput: document.getElementById("startingGoldInput"),
+  shopUnitsEditor: document.getElementById("shopUnitsEditor"),
   saveBtn: document.getElementById("saveBtn"),
   loadBtn: document.getElementById("loadBtn"),
   loadFileInput: document.getElementById("loadFileInput"),
   resetBtn: document.getElementById("resetBtn"),
   deleteEnemyBtn: document.getElementById("deleteEnemyBtn"),
+  editorStageSelect: document.getElementById("editorStageSelect"),
+  addStageBtn: document.getElementById("addStageBtn"),
   modeTerrain: document.getElementById("modeTerrain"),
   modeDeploy: document.getElementById("modeDeploy"),
   modeEnemy: document.getElementById("modeEnemy"),

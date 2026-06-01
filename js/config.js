@@ -123,6 +123,23 @@ export const UnitClass = {
 /** ショップで購入できるユニット（表示順: 剣→斧→槍→弓） */
 export const SHOP_UNIT_KEYS = ["SWORD", "AXE", "LANCE", "ARCHER"];
 
+/** ステージ定義用: 有効なショップユニット一覧（1種類以上） */
+export function normalizeShopUnitKeys(raw) {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return [...SHOP_UNIT_KEYS];
+  }
+  const picked = new Set();
+  const result = [];
+  for (const key of raw) {
+    const resolved = resolveClassKey(key);
+    if (SHOP_UNIT_KEYS.includes(resolved) && !picked.has(resolved)) {
+      picked.add(resolved);
+      result.push(resolved);
+    }
+  }
+  return result.length > 0 ? result : [...SHOP_UNIT_KEYS];
+}
+
 /** ステージエディタで配置できる敵（表示順） */
 export const ENEMY_EDITOR_KEYS = ["SWORD", "AXE", "LANCE", "ARCHER"];
 

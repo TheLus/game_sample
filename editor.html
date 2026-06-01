@@ -36,8 +36,22 @@
       <aside class="sidebar">
         <section class="panel">
           <h2>ステージ</h2>
+          <label class="field-label" for="editorStageSelect">編集するステージ</label>
+          <select id="editorStageSelect" class="text-input stage-select"></select>
+          <button id="addStageBtn" type="button" class="btn btn-secondary">ステージ追加</button>
           <label class="field-label" for="stageName">名前</label>
           <input type="text" id="stageName" class="text-input" value="カスタムステージ">
+          <label class="field-label" for="startingGoldInput">初期資金</label>
+          <input
+            type="number"
+            id="startingGoldInput"
+            class="text-input"
+            min="0"
+            step="10"
+            value="400"
+          >
+          <p class="field-label">購入できる味方ユニット</p>
+          <div id="shopUnitsEditor" class="shop-units-editor"></div>
           <div class="stage-io-buttons">
             <button id="saveBtn" type="button" class="btn btn-primary">保存</button>
             <button id="loadBtn" type="button" class="btn btn-secondary">読込</button>
@@ -56,8 +70,11 @@
             <li>敵クリック→移動先指定（戦闘時の目標）</li>
             <li>敵ドラッグ: 位置変更 / マップ外で削除</li>
             <li>敵の削除: 右クリック / Shift+クリック / Delete / 削除ボタン</li>
-            <li><strong>保存</strong>: JSONファイルをダウンロード（ゲームにも反映）</li>
-            <li><strong>読込</strong>: JSONファイルからステージを復元</li>
+            <li>プルダウンで編集ステージを切替（切替前に自動保存）</li>
+            <li>初期資金・購入可能ユニットをステージごとに設定</li>
+            <li><strong>ステージ追加</strong>: 新しい空きステージを作成</li>
+            <li><strong>保存</strong>: 全ステージを1つのJSONファイルに出力</li>
+            <li><strong>読込</strong>: ステージセットJSONで全ステージを置き換え</li>
           </ul>
         </section>
       </aside>

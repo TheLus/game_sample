@@ -10,6 +10,7 @@ import {
   cloneGrid,
   enemyDefsToSpawn,
 } from "./stage.js";
+import { normalizeShopUnitKeys } from "./config.js";
 import { createUnit, createUnits, resetUnitIds } from "./units.js";
 import {
   getPathToward,
@@ -48,13 +49,12 @@ export class Game {
     this.ui = ui;
     this.renderer = new Renderer(canvas);
     this.stageData = loadActiveStage();
+    this.applyStageConfig(this.stageData);
     this.map = cloneGrid(this.stageData.map);
     this.deployZones = cloneGrid(this.stageData.deployZones);
     this.stageEnemyDefs = this.stageData.enemies;
     this.units = [];
-    this.gold = this.stageData.startingGold;
     this.selectedUnit = null;
-    this.shopClassKey = "SWORD";
     this.cursor = { x: 0, y: 0 };
     this.phase = GamePhase.INSTRUCTION;
     this.combatTurn = 0;
@@ -78,13 +78,12 @@ export class Game {
     this.stopTickLoop();
     resetUnitIds();
     this.stageData = loadActiveStage();
+    this.applyStageConfig(this.stageData);
     this.map = cloneGrid(this.stageData.map);
     this.deployZones = cloneGrid(this.stageData.deployZones);
     this.stageEnemyDefs = this.stageData.enemies;
     this.units = createUnits(enemyDefsToSpawn(this.stageEnemyDefs));
-    this.gold = this.stageData.startingGold;
     this.selectedUnit = null;
-    this.shopClassKey = "SWORD";
     this.phase = GamePhase.INSTRUCTION;
     this.combatTurn = 0;
     this.staleTurns = 0;
@@ -96,10 +95,25 @@ export class Game {
     this.clearDrag();
     this.ui.restartBtn.hidden = true;
     this.setMessage(
-      "指示フェーズ — 下のユニットを選んで配置 / ドラッグで移動・マップ外で売却"
+      `「${this.stageData.name}」— 指示フェーズ（下のユニットを選んで配置 / ドラッグで移動・マップ外で売却）`
     );
     this.updateUI();
     this.render();
+  }
+
+  restartForStage() {
+    if (this.isCombatPhase()) {
+      this.stopTickLoop();
+    }
+    this.start();
+  }
+
+  applyStageConfig(stageData) {
+    this.shopUnitKeys = normalizeShopUnitKeys(stageData.shopUnitKeys);
+    this.gold = stageData.startingGold;
+    if (!this.shopUnitKeys.includes(this.shopClassKey)) {
+      this.shopClassKey = this.shopUnitKeys[0];
+    }
   }
 
   isInstructionPhase() {
@@ -313,6 +327,7 @@ export class Game {
   updateUI() {
     this.ui.renderGold(this.gold);
     this.ui.renderShop(
+      this.shopUnitKeys,
       this.shopClassKey,
       this.gold,
       this.isInstructionPhase()
@@ -524,6 +539,7 @@ export class Game {
 
   tryPlaceUnit(x, y) {
     if (this.selectedUnit) return false;
+    if (!this.shopUnitKeys.includes(this.shopClassKey)) return false;
     if (this.getUnitAt(x, y)) return false;
 
     const cost = UnitClass[this.shopClassKey].cost;

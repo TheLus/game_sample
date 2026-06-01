@@ -170,12 +170,42 @@ body {
   width: 100%;
 }
 
+.shop-units-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.shop-unit-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.shop-unit-check input {
+  accent-color: var(--accent);
+}
+
 .phase-text.player {
   color: var(--player);
 }
 
 .phase-text.enemy {
   color: var(--enemy);
+}
+
+.stage-select {
+  width: 100%;
+  margin-bottom: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
 }
 
 .gold-text {
@@ -225,8 +255,8 @@ body {
 }
 
 .unit-shop {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.4rem;
 }
 
@@ -234,9 +264,9 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.75rem;
-  min-width: 140px;
-  flex: 1;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
   padding: 0.45rem 0.65rem;
   border: 1px solid var(--border);
   border-radius: 4px;

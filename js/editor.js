@@ -7,6 +7,8 @@ import {
   MAP_HEIGHT,
   TERRAIN_BRUSH_KEYS,
   ENEMY_EDITOR_KEYS,
+  SHOP_UNIT_KEYS,
+  STARTING_GOLD,
   isImpassableTerrain,
 } from "./config.js";
 import { getPathToward, getTerrain } from "./pathfinding.js";
@@ -14,12 +16,18 @@ import { isDeployZone, canDeployAt } from "./deployment.js";
 import { createUnit } from "./units.js";
 import { Renderer } from "./renderer.js";
 import {
-  loadStage,
-  saveStage,
-  downloadStageJson,
+  downloadStagesLibrary,
+  importStagesLibrary,
+  getEditorStageId,
   buildDefaultStage,
   cloneGrid,
   normalizeStage,
+  loadEditorStage,
+  setEditorStageId,
+  updateStageInLibrary,
+  addStage,
+  fillStageSelect,
+  listStages,
 } from "./stage.js";
 
 const EditorMode = {
@@ -35,7 +43,8 @@ export class StageEditor {
     this.canvas = canvas;
     this.ui = ui;
     this.renderer = new Renderer(canvas);
-    this.stage = normalizeStage(loadStage() ?? buildDefaultStage());
+    this.currentStageId = getEditorStageId();
+    this.stage = normalizeStage(loadEditorStage());
     this.mode = EditorMode.TERRAIN;
     this.terrainBrushId = Terrain.PLAIN.id;
     this.enemyClassKey = "SWORD";
@@ -55,6 +64,11 @@ export class StageEditor {
   }
 
   bindEvents() {
+    this.ui.editorStageSelect?.addEventListener("change", () =>
+      this.onEditorStageSelectChange()
+    );
+    this.ui.addStageBtn?.addEventListener("click", () => this.onAddStage());
+
     this.ui.saveBtn.addEventListener("click", () => this.save());
     this.ui.loadBtn.addEventListener("click", () => this.ui.loadFileInput.click());
     this.ui.loadFileInput.addEventListener("change", () => this.loadFromFileInput());
@@ -240,7 +254,8 @@ export class StageEditor {
       btn.classList.toggle("selected", btn.dataset.classKey === this.enemyClassKey);
     }
 
-    this.ui.stageNameInput.value = this.stage.name;
+    this.applyStageSettingsToUI();
+    fillStageSelect(this.ui.editorStageSelect, this.currentStageId);
     this.ui.terrainPalette.hidden = this.mode !== EditorMode.TERRAIN;
     this.ui.enemyPalette.hidden = this.mode !== EditorMode.ENEMY;
 
@@ -542,11 +557,71 @@ export class StageEditor {
     this.stage.name = this.ui.stageNameInput.value.trim() || "カスタムステージ";
   }
 
-  save() {
+  syncStageSettingsFromUI() {
     this.syncStageNameFromUI();
-    saveStage(this.stage);
-    downloadStageJson(this.stage);
-    this.setMessage("JSONを出力しました — ゲームにも反映済みです");
+    const gold = Number(this.ui.startingGoldInput?.value);
+    this.stage.startingGold =
+      Number.isFinite(gold) && gold >= 0 ? Math.floor(gold) : STARTING_GOLD;
+
+    const keys = SHOP_UNIT_KEYS.filter((key) => {
+      const input = this.ui.shopUnitsEditor?.querySelector(
+        `[data-class-key="${key}"]`
+      );
+      return input?.checked;
+    });
+    this.stage.shopUnitKeys = keys.length > 0 ? keys : [...SHOP_UNIT_KEYS];
+  }
+
+  applyStageSettingsToUI() {
+    this.ui.stageNameInput.value = this.stage.name;
+    if (this.ui.startingGoldInput) {
+      this.ui.startingGoldInput.value = String(this.stage.startingGold);
+    }
+    for (const key of SHOP_UNIT_KEYS) {
+      const input = this.ui.shopUnitsEditor?.querySelector(
+        `[data-class-key="${key}"]`
+      );
+      if (input) {
+        input.checked = this.stage.shopUnitKeys.includes(key);
+      }
+    }
+  }
+
+  persistCurrentStage() {
+    this.syncStageSettingsFromUI();
+    updateStageInLibrary(this.currentStageId, this.stage);
+  }
+
+  onEditorStageSelectChange() {
+    const newId = this.ui.editorStageSelect?.value;
+    if (!newId || newId === this.currentStageId) return;
+
+    this.persistCurrentStage();
+    this.currentStageId = newId;
+    setEditorStageId(newId);
+    this.stage = normalizeStage(loadEditorStage());
+    this.selectedEnemyIndex = null;
+    this.updateUI();
+    this.render();
+    this.setMessage(`「${this.stage.name}」を編集しています`);
+  }
+
+  onAddStage() {
+    this.persistCurrentStage();
+    const id = addStage();
+    this.currentStageId = id;
+    this.stage = normalizeStage(loadEditorStage());
+    this.selectedEnemyIndex = null;
+    this.updateUI();
+    this.render();
+    this.setMessage(`新規ステージ「${this.stage.name}」を追加しました`);
+  }
+
+  save() {
+    this.persistCurrentStage();
+    const count = listStages().length;
+    downloadStagesLibrary();
+    this.setMessage(`全${count}ステージを JSON に出力しました`);
   }
 
   loadFromFileInput() {
@@ -558,14 +633,19 @@ export class StageEditor {
     reader.onload = () => {
       try {
         const parsed = JSON.parse(reader.result);
-        this.stage = normalizeStage(parsed);
-        saveStage(this.stage);
+        importStagesLibrary(parsed);
+        this.currentStageId = getEditorStageId();
+        this.stage = normalizeStage(loadEditorStage());
+        fillStageSelect(this.ui.editorStageSelect, this.currentStageId);
         this.selectedEnemyIndex = null;
         this.updateUI();
         this.render();
-        this.setMessage(`「${this.stage.name}」を読み込みました`);
+        const count = listStages().length;
+        this.setMessage(
+          `ステージセットを読み込みました（${count}件）— 「${this.stage.name}」を編集中`
+        );
       } catch {
-        this.setMessage("JSONの読み込みに失敗しました");
+        this.setMessage("JSONの読み込みに失敗しました（ステージセット形式）");
       }
     };
     reader.onerror = () => this.setMessage("ファイルの読み込みに失敗しました");
@@ -575,9 +655,11 @@ export class StageEditor {
   loadDefault() {
     if (!confirm("デフォルトのマップに戻しますか？未保存の変更は失われます。")) return;
     this.stage = buildDefaultStage();
+    this.persistCurrentStage();
+    fillStageSelect(this.ui.editorStageSelect, this.currentStageId);
     this.selectedEnemyIndex = null;
     this.updateUI();
     this.render();
-    this.setMessage("デフォルトステージを読み込みました");
+    this.setMessage("現在のステージをデフォルトに戻しました");
   }
 }
